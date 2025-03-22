@@ -6,6 +6,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from 'fs';
 import { RequestHandler } from 'express-serve-static-core';
 
+type MulterRequest = Request & {
+  files?: {
+    [fieldname: string]: Express.Multer.File[];
+  };
+};
+
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,27 +26,48 @@ const upload = multer({ dest: 'uploads/' });
 const generateHandler: RequestHandler = async (req, res) => {
   try {
     const { prompt } = req.body;
-    const imageFile = req.file;
+    const files = req.files as
+      | { [fieldname: string]: Express.Multer.File[] }
+      | undefined;
+    const originalImage = files?.['originalImage']?.[0];
+    const sketchImage = files?.['sketchImage']?.[0];
 
-    if (!prompt || !imageFile) {
-      res.status(400).json({ error: 'Prompt and image are required.' });
+    if (!originalImage || !sketchImage) {
+      res.status(400).json({
+        error: 'Original image and sketch image are required.',
+      });
       return;
     }
 
-    // Convert the uploaded image to Base64
-    const imageData = fs.readFileSync(imageFile.path);
-    const base64Image = imageData.toString('base64');
+    // Convert both images to Base64
+    const originalImageData = fs.readFileSync(originalImage.path);
+    const originalBase64 = originalImageData.toString('base64');
 
-    // **Pre-Prompt for Consistency**
-    const prePrompt = `You are an advanced AI image editing assistant. Your task is to modify images strictly according to the user's request while maintaining realism and visual coherence. Always ensure the generated output aligns with the given image context and adheres to natural lighting, perspective, and artistic integrity. Avoid generating unrelated content, extreme alterations, or responses that are not images. If the request is unclear or unsafe, respond with a clarification prompt instead of an incorrect or unexpected output.`;
+    const sketchImageData = fs.readFileSync(sketchImage.path);
+    const sketchBase64 = sketchImageData.toString('base64');
 
     // Prepare request data
     const contents = [
-      { text: `${prePrompt}\n\nUser request: ${prompt}` },
+      {
+        text: `You are an advanced AI image editing assistant. I will provide you with two images:
+1. An original image
+2. A sketch/drawing on top of the original image showing the desired modifications
+
+Please analyze both images and generate a new image that incorporates the modifications shown in the sketch while maintaining the style and quality of the original image. The modifications should be seamlessly integrated and look natural. Only pay attention to the concept of the sketch, not the details.
+If you can tell what the sketch is supposed to be, make the changes. If you can't tell, make the changes that you think are best.
+
+${prompt ? `User's additional context: ${prompt}` : ''}`,
+      },
       {
         inlineData: {
-          mimeType: imageFile.mimetype,
-          data: base64Image,
+          mimeType: originalImage.mimetype,
+          data: originalBase64,
+        },
+      },
+      {
+        inlineData: {
+          mimeType: sketchImage.mimetype,
+          data: sketchBase64,
         },
       },
     ];
@@ -72,15 +99,23 @@ const generateHandler: RequestHandler = async (req, res) => {
 
     res.json({ text: textResponse, image: imageResponse });
 
-    // Clean up uploaded file
-    fs.unlinkSync(imageFile.path);
+    // Clean up uploaded files
+    fs.unlinkSync(originalImage.path);
+    fs.unlinkSync(sketchImage.path);
   } catch (error) {
     console.error('Error generating content:', error);
     res.status(500).json({ error: 'Failed to generate content.' });
   }
 };
 
-app.post('/api/generate', upload.single('image'), generateHandler);
+app.post(
+  '/api/generate',
+  upload.fields([
+    { name: 'originalImage', maxCount: 1 },
+    { name: 'sketchImage', maxCount: 1 },
+  ]),
+  generateHandler
+);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

@@ -1,6 +1,6 @@
 # AI Image Editor
 
-A web application that uses Google's Gemini AI to modify images based on text prompts. The application features a modern dark-themed UI and real-time image preview functionality.
+A web application that uses Google's Gemini AI to modify images based on sketches and text prompts. Upload an original image and a sketch showing your desired modifications, and the AI will generate a new image incorporating those changes.
 
 ## Prerequisites
 
@@ -73,18 +73,20 @@ The frontend application will run on `http://localhost:5173`
 ## Usage
 
 1. Open your browser and navigate to `http://localhost:5173`
-2. Click "Choose File" to upload an image
-3. Enter a text prompt describing how you want to modify the image
-4. Click "Generate" to process the image
-5. The modified image will appear in the result section
+2. Upload your original image by clicking "Choose Original Image"
+3. Upload a sketch or drawing showing your desired modifications by clicking "Choose Sketch Image"
+4. (Optional) Add any additional context about the modifications in the text area
+5. Click "Generate" to process the images
+6. The modified image will appear in the result section
 
 ## Features
 
 - Modern dark-themed UI
-- Real-time image preview
+- Real-time image preview for both original and sketch images
 - Responsive design
 - Loading states and error handling
 - Secure file upload handling
+- Support for sketch-based image modifications
 
 ## Technologies Used
 
